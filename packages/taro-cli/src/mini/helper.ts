@@ -4,7 +4,7 @@ import * as path from 'path'
 import * as _ from 'lodash'
 import { Config } from '@tarojs/taro'
 import * as wxTransformer from '@tarojs/transformer-wx'
-import getHashName from '../util/hash';
+import getHashName from '../util/hash'
 
 import {
   BUILD_TYPES,
@@ -37,7 +37,8 @@ import {
   IProjectConfig,
   IOption,
   INpmConfig,
-  IWxTransformResult
+  IWxTransformResult,
+  ITaroManifestConfig
 } from '../util/types'
 import CONFIG from '../config'
 
@@ -79,7 +80,8 @@ export interface IBuildData {
   npmOutputDir: string,
   jsxAttributeNameReplace?: {
     [key: string]: any
-  }
+  },
+  quickappManifest?: ITaroManifestConfig
 }
 
 let BuildData: IBuildData
@@ -99,6 +101,10 @@ export function setAppConfig (appConfig: Config) {
 
 export function setIsProduction (isProduction: boolean) {
   BuildData.isProduction = isProduction
+}
+
+export function setQuickappManifest (quickappManifest: ITaroManifestConfig) {
+  BuildData.quickappManifest = quickappManifest
 }
 
 export function setBuildData (appPath: string, adapter: BUILD_TYPES): IBuildData {
@@ -233,7 +239,7 @@ export function getRealComponentsPathList (
 ): IComponentObj[] {
   const { appPath, isProduction, buildAdapter, projectConfig, npmConfig } = BuildData
   const pathAlias = projectConfig.alias || {}
-  return components.map(component => {
+  return components.length ? components.map(component => {
     let componentPath = component.path
     if (isAliasPath(componentPath as string, pathAlias)) {
       componentPath = replaceAliasPath(filePath, componentPath as string, pathAlias)
@@ -256,7 +262,7 @@ export function getRealComponentsPathList (
       name: component.name,
       type: component.type
     }
-  })
+  }) : []
 }
 
 export function isFileToBePage (filePath: string): boolean {
@@ -295,19 +301,19 @@ export function initCopyFiles () {
 }
 
 export function copyFilesFromSrcToOutput (files: string[], cb?: (sourceFilePath: string, outputFilePath: string) => void) {
-  const { nodeModulesPath, npmOutputDir, sourceDir, outputDir, appPath, projectConfig, buildAdapter } = BuildData
-  const adapterConfig = projectConfig[buildAdapter];
+  const { nodeModulesPath, npmOutputDir, sourceDir, outputDir, appPath, projectConfig } = BuildData
+  const adapterConfig = Object.assign({}, projectConfig.weapp)
   files.forEach(file => {
     let outputFilePath
     if (NODE_MODULES_REG.test(file)) {
       outputFilePath = file.replace(nodeModulesPath, npmOutputDir)
     } else {
-      if (adapterConfig.publicPath) {
-        const hashName = getHashName(file);
-        const staticPath = path.join(appPath, adapterConfig.staticDirectory, projectConfig.projectName || '');
-        outputFilePath = `${staticPath}/${hashName}`;
+      if (adapterConfig.publicPath && adapterConfig.staticDirectory) {
+        const hashName = getHashName(file)
+        const staticPath = path.join(appPath, adapterConfig.staticDirectory, projectConfig.projectName || '')
+        outputFilePath = `${staticPath}/${hashName}`
       } else {
-        outputFilePath = file.replace(sourceDir, outputDir);
+        outputFilePath = file.replace(sourceDir, outputDir)
       }
     }
     if (isCopyingFiles.get(outputFilePath)) {
